@@ -24,7 +24,7 @@ class TestVtValue(unittest.TestCase):
            auto-conversion)'''
         self.assertEqual(Vt._test_ValueTypeName(1.234), 'double')
         self.assertEqual(Vt._test_ValueTypeName('hello'), 'string')
-        self.assertEqual(Vt._test_ValueTypeName(Ellipsis), 'TfPyObjWrapper')
+        self.assertEqual(Vt._test_ValueTypeName(Ellipsis), 'pxr::TfPyObjWrapper')
 
     def test_Ident(self):
         self.assertEqual(Vt._test_Ident(1.234), 1.234)
@@ -52,7 +52,7 @@ class TestVtValue(unittest.TestCase):
         self.assertEqual(Vt._test_ValueTypeName(Vt.Long(1234)), 'long')
         self.assertEqual(Vt._test_ValueTypeName(Vt.ULong(100)), 'unsigned long')
 
-        self.assertEqual(Vt._test_ValueTypeName(Vt.Half(1.234)), 'pxr_half::half')
+        self.assertEqual(Vt._test_ValueTypeName(Vt.Half(1.234)), 'pxr::half::half')
         self.assertEqual(Vt._test_ValueTypeName(Vt.Float(1.234)), 'float')
         self.assertEqual(Vt._test_ValueTypeName(Vt.Double(1.234)), 'double')
 
@@ -60,7 +60,7 @@ class TestVtValue(unittest.TestCase):
         # coerced via Vt.Token
         self.assertEqual(Vt._test_ValueTypeName('hello'), 'string')
         self.assertEqual(Vt._test_ValueTypeName(u'hello'), 'string')
-        self.assertEqual(Vt._test_ValueTypeName(Vt.Token('hello')), 'TfToken')
+        self.assertEqual(Vt._test_ValueTypeName(Vt.Token('hello')), 'pxr::TfToken')
 
     def test_IntValueRoundTrip(self):
         '''Make sure we correctly convert ints of various sizes in the value

@@ -1,81 +1,105 @@
-set(PXR_PREFIX pxr/base)
-set(PXR_PACKAGE vt)
+cmake_minimum_required(VERSION 3.21...3.31)
 
-pxr_library(vt
-    LIBRARIES
-        arch
-        tf
-        gf
-        trace
-        ${TBB_tbb_LIBRARY}
+# Default build type value.
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
-    INCLUDE_DIRS
-        ${TBB_INCLUDE_DIRS}
-
-    PUBLIC_CLASSES
-        array
-        dictionary
-        hash
-        streamOut
-        types
-        value
-
-    PYTHON_PUBLIC_CLASSES
-        arrayPyBuffer
-        valueFromPython
-        wrapArray
-
-    PUBLIC_HEADERS
-        api.h
-        traits.h
-        typeHeaders.h
-        visitValue.h
-    
-    PYTHON_PUBLIC_HEADERS
-        pyOperators.h
-
-    PYMODULE_CPPFILES
-        module.cpp
-        wrapArrayBase.cpp
-        wrapArrayDualQuaternion.cpp
-        wrapArrayFloat.cpp
-        wrapArrayIntegral.cpp
-        wrapArrayMatrix.cpp
-        wrapArrayQuaternion.cpp
-        wrapArrayRange.cpp
-        wrapArrayString.cpp
-        wrapArrayToken.cpp
-        wrapArrayVec.cpp
-        wrapDictionary.cpp
-        wrapValue.cpp
-
-    PYMODULE_FILES
-        __init__.py
-
-    DOXYGEN_FILES
-        overview.dox
+project(pxr-vt
+    VERSION 0.25.5
+    HOMEPAGE_URL "https://github.com/untwine/pxr-vt"
+    LANGUAGES C CXX
 )
 
-pxr_build_test(testVtCpp
-    LIBRARIES
-        tf
-        gf
-        vt
-    CPPFILES
-        testenv/testVtCpp.cpp
+if (NOT "${CMAKE_CXX_STANDARD}")
+    set(CMAKE_CXX_STANDARD 17 CACHE STRING "Default C++ standard")
+endif()
+
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Default options.
+option(BUILD_TESTS "Build tests" ON)
+option(BUILD_SHARED_LIBS "Build Shared Library" ON)
+option(BUILD_PYTHON_BINDINGS "Build Python Bindings" ON)
+option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers." OFF)
+
+if (NOT BUILD_SHARED_LIBS)
+    add_compile_definitions(PXR_STATIC)
+endif()
+
+include(GNUInstallDirs)
+
+if (WIN32)
+    # Prevent WinDef.h from defining min/max macros.
+    add_definitions(-DNOMINMAX)
+
+    # Exclude unnecessary Windows APIs for faster builds and fewer macro conflicts.
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+
+    # Disable /Zc:inline in VS 2019+ to retain "arch_ctor_<name>" symbols in release.
+    # https://developercommunity.visualstudio.com/t/914943
+    if (MSVC_VERSION GREATER_EQUAL 1920)
+        set(CMAKE_CXX_FLAGS "/Zc:inline- ${CMAKE_CXX_FLAGS}")
+    else()
+        set(CMAKE_CXX_FLAGS "/Zc:inline ${CMAKE_CXX_FLAGS}")
+    endif()
+
+    # Disable harmless Visual Studio warning C4003 (non-standard preprocessor).
+    # https://developercommunity.visualstudio.com/t/364698
+    set(CMAKE_CXX_FLAGS "/wd4003 ${CMAKE_CXX_FLAGS}")
+endif()
+
+# Update build type from environment for CMake < 3.22
+if (DEFINED ENV{CMAKE_BUILD_TYPE})
+    set(CMAKE_BUILD_TYPE $ENV{CMAKE_BUILD_TYPE}
+        CACHE STRING "Specifies the build type" FORCE)
+endif()
+
+find_package(pxr-arch 0.25.5 REQUIRED)
+find_package(pxr-tf 0.25.5 REQUIRED)
+find_package(pxr-gf 0.25.5 REQUIRED)
+find_package(pxr-trace 0.25.5 REQUIRED)
+find_package(TBB 2017.0 REQUIRED)
+
+if(BUILD_PYTHON_BINDINGS)
+    add_compile_definitions(PXR_PYTHON_SUPPORT_ENABLED=1)
+    find_package(pxr-boost 0.25.5 REQUIRED)
+
+    if (NOT CMAKE_INSTALL_PYTHON_LIBDIR)
+        set(py_version "${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
+        set(CMAKE_INSTALL_PYTHON_LIBDIR
+            "${CMAKE_INSTALL_LIBDIR}/python${py_version}/site-packages"
+            CACHE INTERNAL "Installation Python library path.")
+    endif ()
+endif()
+
+add_subdirectory(src)
+
+# Build and setup tests if required.
+if (BUILD_TESTS)
+    # Python is needed to run the tests.
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
+    find_package(Pytest)
+
+    enable_testing()
+    add_subdirectory(test)
+endif()
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    "cmake/pxr-vt-config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/pxr-vt-config.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/pxr-vt
 )
-pxr_test_scripts(
-    testenv/testVtArray.py
-    testenv/testVtValue.py
+
+write_basic_package_version_file(
+    "pxr-vt-config-version.cmake"
+    COMPATIBILITY AnyNewerVersion
 )
-pxr_register_test(testVtValue
-    PYTHON
-    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testVtValue"
-)
-pxr_register_test(testVtArray
-    PYTHON
-    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testVtArray"
-)
-pxr_register_test(testVtCpp
-    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testVtCpp"
+
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/pxr-vt-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/pxr-vt-config-version.cmake"
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/pxr-vt
 )
