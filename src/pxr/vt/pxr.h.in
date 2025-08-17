@@ -1,0 +1,53 @@
+// Copyright 2016 Pixar
+//
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
+//
+
+#ifndef PXR_VT_H
+#define PXR_VT_H
+
+#include <pxr/arch/pxr.h>
+#include <pxr/tf/pxr.h>
+#include <pxr/gf/pxr.h>
+#include <pxr/trace/pxr.h>
+
+#ifdef PXR_PYTHON_SUPPORT_ENABLED
+#include <pxr/boost/python/common.hpp>
+#endif
+
+#define VT_MAJOR_VERSION @PROJECT_VERSION_MAJOR@
+#define VT_MINOR_VERSION @PROJECT_VERSION_MINOR@
+#define VT_PATCH_VERSION @PROJECT_VERSION_PATCH@
+
+#define VT_VERSION (VT_MAJOR_VERSION * 10000 \
+                  + VT_MINOR_VERSION * 100   \
+                  + VT_PATCH_VERSION)
+
+#define PXR_NS pxr
+#define VT_INTERNAL_NS pxrInternal_v@PROJECT_VERSION_MAJOR@_@PROJECT_VERSION_MINOR@_@PROJECT_VERSION_PATCH@__pxrReserved__
+#define PXR_NS_GLOBAL ::PXR_NS
+
+namespace VT_INTERNAL_NS { }
+
+namespace PXR_NS {
+    using namespace VT_INTERNAL_NS;
+}
+
+// Import direct dependencies into vt's internal namespace.
+// This keeps resolution correct if package versions ever drift.
+namespace VT_INTERNAL_NS {
+    using namespace ARCH_INTERNAL_NS;
+    using namespace TF_INTERNAL_NS;
+    using namespace GF_INTERNAL_NS;
+    using namespace TRACE_INTERNAL_NS;
+#ifdef PXR_PYTHON_SUPPORT_ENABLED
+    using namespace BOOST_INTERNAL_NS;
+#endif
+}
+
+#define VT_NAMESPACE_OPEN_SCOPE   namespace VT_INTERNAL_NS {
+#define VT_NAMESPACE_CLOSE_SCOPE  }
+#define VT_NAMESPACE_USING_DIRECTIVE using namespace PXR_NS;
+
+#endif // PXR_VT_H
