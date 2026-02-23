@@ -640,7 +640,7 @@ ARCH_PRAGMA_POP
             // Detach to empty.
             _DecRef();
         }
-        _shapeData.totalSize = 0;
+        _shapeData.clear();
     }
 
     /// Insert a copy of a single element at \p pos into the array.  Return an
@@ -1090,6 +1090,11 @@ ARCH_PRAGMA_POP
     
     value_type *_data;
 };
+
+// VtArray can transform if the underlying element type can.
+template <class ELEM>
+struct VtValueTypeCanTransform<VtArray<ELEM>> :
+    VtValueTypeCanTransform<ELEM> {};
 
 // Declare basic array instantiations as extern templates.  They are explicitly
 // instantiated in array.cpp.
