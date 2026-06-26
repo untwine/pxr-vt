@@ -382,15 +382,17 @@ VtDictionaryOver(VtDictionary *strong, const VtDictionary &weak,
         TF_CODING_ERROR("VtDictionaryOver: NULL dictionary pointer.");
         return;
     }
-    strong->insert(weak.begin(), weak.end());
 
     if (coerceToWeakerOpinionType) {
-        TF_FOR_ALL(i, *strong) {
-            VtDictionary::const_iterator j = weak.find(i->first);
-            if (j != weak.end()) {
-                i->second.CastToTypeOf(j->second);
+        for (const auto& [weakKey, weakValue] : weak) {
+            if (auto [strongIt, inserted] 
+                = strong->insert({weakKey, weakValue}); !inserted) {
+                strongIt->second.CastToTypeOf(weakValue);
             }
         }
+    } else {
+        // insert will skip existing entries in strong.
+        strong->insert(weak.begin(), weak.end());
     }
 }
 
@@ -402,22 +404,22 @@ VtDictionaryOver(const VtDictionary &strong, VtDictionary *weak,
         TF_CODING_ERROR("VtDictionaryOver: NULL dictionary pointer");
         return;
     }
+
     if (coerceToWeakerOpinionType) {
-        TF_FOR_ALL(it, strong) {
-            VtDictionary::iterator j = weak->find(it->first);
-            if (j == weak->end()) {
-                weak->insert(*it);
-            }
-            else {
-                j->second = VtValue::CastToTypeOf(it->second, j->second);
+        for (const auto& [strongKey, strongValue] : strong) {
+            if (auto [weakIt, inserted] 
+                = weak->insert({strongKey, strongValue}); !inserted) {
+                weakIt->second = 
+                    VtValue::CastToTypeOf(strongValue, weakIt->second);
             }
         }
-    }
-    else {
-        // Can't use map::insert here, because that doesn't overwrite
-        // values for keys in strong that are already in weak.
-        TF_FOR_ALL(it, strong) {
-            (*weak)[it->first] = it->second;
+    } else {
+        // Overwrite values for keys in strong that are already in weak.
+        for (const auto& [strongKey, strongValue] : strong) {
+            if (auto [it, inserted] = weak->insert({strongKey, strongValue}); 
+                !inserted) {
+                it->second = strongValue;
+            }
         }
     }
 }
@@ -439,16 +441,12 @@ VtDictionaryOverRecursive(VtDictionary *strong, const VtDictionary &weak)
     }
 
     for (auto const &[key, weakVal]: weak) {
-        // Look for a matching element in strong.
-        VtDictionary::iterator i = strong->find(key);
-        if (i != strong->end()) {
+        // Attempt to insert into strong.
+        if (auto [i, inserted] = strong->insert({key, weakVal}); !inserted) {
             if (std::optional<VtValue> composed =
                 VtValueTryComposeOver(i->second, weakVal)) {
                 i->second = std::move(*composed);
             }
-        }
-        else {
-            strong->insert({ key, weakVal });
         }
     }
 }
@@ -462,9 +460,8 @@ VtDictionaryOverRecursive(const VtDictionary &strong, VtDictionary *weak)
     }
 
     for (auto const &[key, strongVal]: strong) {
-        // Look for a matching element in weak.
-        VtDictionary::iterator i = weak->find(key);
-        if (i != weak->end()) {
+        // Attempt to insert into weak.
+        if (auto [i, inserted] = weak->insert({key, strongVal}); !inserted) {
             // If we can compose the strong value over the weak, do so and store
             // the result in weak.
             if (std::optional<VtValue> composed =
@@ -475,10 +472,6 @@ VtDictionaryOverRecursive(const VtDictionary &strong, VtDictionary *weak)
                 // Otherwise replace the element in weak.
                 i->second = strongVal;
             }
-        }
-        else {
-            // Add the strong value to weak.
-            (*weak)[key] = strongVal;
         }
     }
 }
@@ -526,4 +519,3 @@ operator<<(std::ostream &stream, VtDictionary const &dict)
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE
-
